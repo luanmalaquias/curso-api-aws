@@ -6,24 +6,12 @@ import uuid # Para gerar um identificador único
 s3_client = boto3.client('s3') # Criando um cliente para o serviço S3
 
 def lambda_handler(event, context):
-    
-    # FileName (nome do arquivo) que será enviado para o S3
-    # Content-type  (tipo do arquivo) que será enviado para o S3
-    
-    # https://y3qyccqdtj.execute-api.us-east-2.amazonaws.com/Prod/hello?fileName=arquivo.txt&contentType=text/plain
 
-    query_params = event.get("queryStringParameters", {}) # -> ?fileName=arquivo.txt&contentType=text/plain
-    
+    query_params = event.get("queryStringParameters", {}) 
     file_name = query_params.get("fileName")
     content_type = query_params.get("contentType")
-    
-    expiration_time = 3600 # Tempo de expiração do link gerado em segundos
-    
-    # Import da váriavel de ambiente do nome do bucket
-    
+    expiration_time = 3600 
     bucket_name = os.environ.get("BUCKET_NAME")
-    
-    # Gerando um identificador único para o arquivo
     
     presigned_url = s3_client.generate_presigned_url(
         "put_object",
@@ -37,9 +25,9 @@ def lambda_handler(event, context):
 
     return {
         "statusCode": 200,
-        'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+        'headers':{
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin' : '*'
         },
         "body": json.dumps({
             "message": "Url pré assinada criada com sucesso",

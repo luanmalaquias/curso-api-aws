@@ -1,97 +1,39 @@
-# alunos-api-aws
+# Gerador de QR Code para Itens
+A funcionalidade nova consiste em uma arquitetura serverless na AWS que gera QR Codes para itens identificados por UUIDs. Quando a função generateContent é chamada, ela gera um UUID para o item, chama a função generateQrCodeFunction para criar um QR Code, salva a imagem no S3 e retorna no response o caminho da imagem junto com as informações do item.
 
-Este projeto contém o código-fonte e arquivos de suporte para uma aplicação serverless que pode ser implantada com o SAM CLI. Ele inclui os seguintes arquivos e pastas:
+## Como Funciona
+### Fluxo do Sistema
+1. Utilização do sistema:
+    - A url pre assinada é gerada
+    - O usuario envia a imagem na url pre assinada
+    - Os dados irão para a fila SQS
+    - A função generateContent é acionada de acordo com a quantidade de itens na fila. 
+    - Um UUID4 é gerado para o item.
+    - A lambda generateQrContent é chamada passando o uuid por parametro (payload)
+    - O qr code é gerado e salvo no bucket s3 do qrcode e o path retornado para a lambda anterior (generateContent).
+    - As informações do item são salvas em um banco de dados junto com o path do qrcode.
+    - O usuario pode usar a lambda de get products para visualizar as informações
 
-- `categorize` - Código para a função Lambda que categoriza imagens.
-- `generateContent` - Código para a função Lambda que gera conteúdo usando o Bedrock.
-- `presignedUrl` - Código para a função Lambda que gera URLs pré-assinadas para upload de arquivos no S3.
-- `events` - Eventos de invocação que podem ser usados para invocar a função.
-- `template.yaml` - Um template que define os recursos AWS da aplicação.
-- `README.md` - Documentação do projeto.
-- `TODO.md` - Lista de tarefas a serem realizadas.
+2. Geração do QR Code:
+    - A lambda generateContent aciona a lambda generateQrCode passando o uuid por payload
+    - A função generateQrCodeFunction recebe o UUID4.
+    - Um QR Code é gerado contendo o UUID4.
+    - A imagem do QR Code é salva em um bucket S3.
+    - O caminho (path) da imagem no S3 é retornado para a função generateContent para salvar posteriormente.
 
-## Estrutura do Projeto
+3. Resposta Final:
+    - A função generateContent recebe o caminho do QR Code.
+    - As informações do item e o caminho do QR Code são salvos no bucket.
 
-### Categorize
-
-A função Lambda em `categorize/app.py` é responsável por detectar labels em imagens enviadas para um bucket S3 usando o Amazon Rekognition. As labels detectadas são enviadas para uma fila SQS.
-
-### Generate Content
-
-A função Lambda em `generateContent/app.py` é responsável por gerar conteúdo usando o Bedrock com base nas labels detectadas e enviadas para a fila SQS.
-
-### Presigned URL
-
-A função Lambda em `presignedUrl/app.py` é responsável por gerar URLs pré-assinadas para upload de arquivos no S3.
-
-## Recursos AWS
-
-Os recursos AWS são definidos no arquivo `template.yaml`. Este arquivo inclui definições para:
-
-- Bucket S3 para upload de imagens.
-- Funções Lambda para categorizar imagens, gerar conteúdo e criar URLs pré-assinadas.
-- Fila SQS para comunicação entre as funções Lambda.
-
-## Implantação
-
-Para implantar a aplicação pela primeira vez, execute os seguintes comandos no seu terminal:
-
-```bash
-sam build --use-container
-sam deploy --guided
-```
-
-## Testes
-
-Os testes são definidos na pasta tests deste projeto. Use o PIP para instalar as dependências de teste e executar os testes.
-
-```bash
-pip install -r tests/requirements.txt --user
-# Teste unitário
-python -m pytest tests/unit -v
-# Teste de integração, requerendo a implantação do stack primeiro.
-# Crie a variável de ambiente AWS_SAM_STACK_NAME com o nome do stack que estamos testando
-AWS_SAM_STACK_NAME="alunos-api-aws" python -m pytest tests/integration -v
-```
-
-## Limpeza
-
-Para deletar a aplicação de exemplo que você criou, use o AWS CLI. Supondo que você usou o nome do seu projeto para o nome do stack, você pode executar o seguinte comando:
-
-```bash
-sam delete --stack-name "alunos-api-aws"
-```
-
-## Recursos
-
-Veja o guia do desenvolvedor AWS SAM para uma introdução à especificação SAM, ao SAM CLI e aos conceitos de aplicação serverless.
-
-Você também pode usar o AWS Serverless Application Repository para implantar Apps prontos para uso que vão além dos exemplos de hello world e aprender como os autores desenvolveram suas aplicações: AWS Serverless Application Repository main page
-
-# Links Uteis
-
-- `Site S3 Uploader`: https://d19xrahy2u07nb.cloudfront.net/
-- `Projeto`: https://github.com/matheus-mprado/alunos-api-aws
-- `PerguntAI`: https://d3qbhhrr5ebjj9.cloudfront.net/course?c=801c639e-ff59-4e85-92b7-b1472c1680ed
-
-## Prompt Site S3 Uploader
-
-Considere ser um engenheiro de software senior que conhece de aws, crie uma página web com react e vite, que ao inserir um link de uma API do aws gateway, e inserir um arquivo, ee vai fazer o trabalho de solicitar uma URL pré assinada do s3 com permissão de put para a chamada do api gateway, e no retorno da url pré assinada, faça o envio do arquivo selecionado via PUT para a URL pré assinada.
-
-Crie de forma minimalista, e seguindo uma UI e UX agradavel, utilizando tons de cinza e melhores práticas de desenvolvimento.
-
-separe em componentes se necessário.
-
-## Configuração do CORS do Bucket S3
-
-```json
-[
-  {
-    "AllowedHeaders": ["*"],
-    "AllowedMethods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
-    "AllowedOrigins": ["*"],
-    "ExposeHeaders": [],
-    "MaxAgeSeconds": 3600
-  }
-]
-```
+## Instruções para Testes
+- Gerar o QR Code:  Apenas realizar a chamada padrão
+    1. Gerar a url pre assinada\
+    `https://eqztu7afs5.execute-api.us-east-2.amazonaws.com/Prod/presigned-url?fileName=nomedoarquivo.png&contentType=image/png`
+    2. Enviar a imagem na url pre assinada (de preferência em formato .png)
+    3. O response retornará o caminho que a imagem foi gerada e salva no item "qrcode" e o usuário poderá visualizar a imagem no navegador.
+- Chamada ao "Get All"
+    1. A url termina com "/products"\
+    `https://eqztu7afs5.execute-api.us-east-2.amazonaws.com/Prod/products`
+- Chamada a um item "Get By Id", por exemplo:
+    1. A url termina com "/products/{id}"\
+    `https://eqztu7afs5.execute-api.us-east-2.amazonaws.com/Prod/products/37e96b3d-cf70-4995-b6b1-dddab5211be8`

@@ -1,32 +1,24 @@
 import json
-import boto3 # Importando a biblioteca boto3 para trabalhar com os serviços da AWS
-import os # Para recuperar variáveis de ambiente
+import boto3 
+import os
 
-rekognition_client = boto3.client("rekognition") # Instanciando o cliente do Rekognition
+rekognition_client = boto3.client("rekognition")
 sqs_client = boto3.client('sqs')
 
 def lambda_handler(event, context):
     
-    # Captura do Evento de Put do Amazon S3
     bucket_name = event['Records'][0]['s3']['bucket']['name']
     file_name = event['Records'][0]['s3']['object']['key']
     
-    print(event)
-    print(bucket_name)
-    print(file_name)
-
-    # Chama do evento de detecção de labels do rekognition
     response = rekognition_client.detect_labels(
-        Image={'S3Object': {'Bucket':bucket_name, 'Name': file_name }},
+        Image={'S3Object':{'Bucket': bucket_name, 'Name': file_name}},
         MaxLabels=10,
-        MinConfidence=50
+        MinConfidence=80
     )
-    
-    # Lista de labels detectadas
-    labels = [label['Name'] for label in response['Labels']]
-    
-    print(labels)
-    
+
+    labels = [label['Name'] for label in response["Labels"]]
+
+    # disparo pro sqs
     sqs_client.send_message(
         QueueUrl=os.environ['SQS_URL'],
         MessageBody=json.dumps({
@@ -35,4 +27,12 @@ def lambda_handler(event, context):
             'labels': labels
         })
     )
-    
+
+    print(labels)
+
+    return {
+        "statusCode": 200,
+        "body": json.dumps({
+            "message": "Processamento de labels realizado com sucesso",
+        }),
+    }
